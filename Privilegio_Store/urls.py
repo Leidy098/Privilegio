@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from Privilegio_App.views import HomeView, ShoppingCartCreateView
+from Privilegio_App.services import ShoppingCartService
 
 urlpatterns = [
+    path("", HomeView.as_view(), name="home"),
     path('admin/', admin.site.urls),
+    path(
+        "api/carts/",
+        ShoppingCartCreateView.as_view(service=ShoppingCartService()),
+        name="cart-create",
+    ),
 ]

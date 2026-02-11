@@ -67,7 +67,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Privilegio.wsgi.application'
+WSGI_APPLICATION = 'Privilegio_Store.wsgi.application'
 
 
 # Database

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privilegio Store - Prueba Carrito</title>
+  <style>
+    :root {
+      --bg: #f6e8f0;
+      --card: #ffffff;
+      --text: #1e1e1e;
+      --accent: #bc3b79;
+      --accent-hover: #a32f67;
+      --muted: #666666;
+      --ok: #1f7a35;
+      --error: #b3261e;
+      --border: #e2c9d7;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top right, #f9e3cf, var(--bg) 55%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(680px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    button {
+      margin-top: 12px;
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    pre {
+      margin-top: 16px;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fbf7f0;
+      border: 1px solid var(--border);
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.88rem;
+    }
+
+    .status-ok {
+      color: var(--ok);
+      font-weight: 600;
+    }
+
+    .status-error {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    @media (max-width: 680px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Probar Carrito de Compras</h1>
+    <p>Ingresa los datos y crea un carrito sin usar Postman ni terminal.</p>
+
+    <form id="cart-form">
+      {% csrf_token %}
+      <div class="grid">
+        <div class="full">
+          <label for="customer_email">Email del cliente</label>
+          <input id="customer_email" type="email" value="cliente@tienda.com" required>
+        </div>
+
+        <div>
+          <label for="product_id">ID del producto</label>
+          <input id="product_id" type="number" min="1" required>
+        </div>
+
+        <div>
+          <label for="quantity">Cantidad</label>
+          <input id="quantity" type="number" min="1" value="1" required>
+        </div>
+
+      </div>
+      <button type="submit">Crear carrito</button>
+    </form>
+
+    <pre id="result">Resultado pendiente...</pre>
+  </main>
+
+  <script>
+    const form = document.getElementById("cart-form");
+    const resultBox = document.getElementById("result");
+
+    function getCSRFToken() {
+      const tokenInput = document.querySelector("input[name=csrfmiddlewaretoken]");
+      return tokenInput ? tokenInput.value : "";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const payload = {
+        customer_email: document.getElementById("customer_email").value.trim(),
+        items: [
+          {
+            product_id: Number(document.getElementById("product_id").value),
+            quantity: Number(document.getElementById("quantity").value)
+          }
+        ]
+      };
+
+      try {
+        const response = await fetch("/api/carts/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const body = await response.json();
+        const statusClass = response.ok ? "status-ok" : "status-error";
+        resultBox.innerHTML = `<span class="${statusClass}">HTTP ${response.status}</span>\n` +
+          JSON.stringify(body, null, 2);
+      } catch (error) {
+        resultBox.innerHTML = `<span class="status-error">Error de conexión</span>\n${error}`;
+      }
+    });
+  </script>
+</body>
+</html>
