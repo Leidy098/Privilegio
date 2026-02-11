@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class PrivilegioConfig(AppConfig):
-    name = 'Privilegio'
+    name = 'Privilegio_App'
