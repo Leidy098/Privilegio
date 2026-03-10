@@ -3,195 +3,251 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privilegio Store - Prueba Carrito</title>
+  <title>Privilegio Store</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    :root {
-      --bg: #f6e8f0;
-      --card: #ffffff;
-      --text: #1e1e1e;
-      --accent: #bc3b79;
-      --accent-hover: #a32f67;
-      --muted: #666666;
-      --ok: #1f7a35;
-      --error: #b3261e;
-      --border: #e2c9d7;
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    }
-
     body {
-      margin: 0;
+      background:
+        radial-gradient(circle at top, rgba(252, 163, 17, 0.18), transparent 28%),
+        linear-gradient(180deg, #f8f9fa 0%, #eef2f6 100%);
       min-height: 100vh;
-      background: radial-gradient(circle at top right, #f9e3cf, var(--bg) 55%);
-      color: var(--text);
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(20, 33, 61, 0.96), rgba(35, 52, 90, 0.92));
+      color: #fff;
+      border-radius: 1.5rem;
+    }
+
+    .product-card,
+    .cart-panel {
+      border: 0;
+      border-radius: 1.25rem;
+      box-shadow: 0 14px 40px rgba(20, 33, 61, 0.08);
+    }
+
+    .product-visual {
+      min-height: 220px;
+      background: linear-gradient(160deg, #dfe7ef, #ffffff 70%);
       display: grid;
       place-items: center;
-      padding: 24px;
+      font-size: 4rem;
+      overflow: hidden;
     }
 
-    .card {
-      width: min(680px, 100%);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 1.8rem;
-    }
-
-    p {
-      margin: 0 0 18px;
-      color: var(--muted);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 0.95rem;
-    }
-
-    input {
+    .product-visual img {
       width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 0.95rem;
+      height: 220px;
+      object-fit: cover;
     }
 
-    .full {
-      grid-column: 1 / -1;
-    }
-
-    button {
-      margin-top: 12px;
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 12px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: var(--accent-hover);
-    }
-
-    pre {
-      margin-top: 16px;
-      border-radius: 12px;
-      padding: 14px;
-      background: #fbf7f0;
-      border: 1px solid var(--border);
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-size: 0.88rem;
-    }
-
-    .status-ok {
-      color: var(--ok);
-      font-weight: 600;
-    }
-
-    .status-error {
-      color: var(--error);
-      font-weight: 600;
-    }
-
-    @media (max-width: 680px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
+    .cart-panel {
+      position: sticky;
+      top: 1.5rem;
     }
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>Probar Carrito de Compras</h1>
-    <p>Ingresa los datos y crea un carrito sin usar Postman ni terminal.</p>
-
-    <form id="cart-form">
-      {% csrf_token %}
-      <div class="grid">
-        <div class="full">
-          <label for="customer_email">Email del cliente</label>
-          <input id="customer_email" type="email" value="cliente@tienda.com" required>
+  <div class="container py-4 py-lg-5">
+    <section class="hero p-4 p-lg-5 mb-4 mb-lg-5">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <span class="badge text-bg-warning text-dark mb-3">Catalogo</span>
+          <h1 class="display-5 fw-bold">Privilegio Store</h1>
+          <p class="lead text-white-50 mb-0">Agrega productos al carrito y completa la compra.</p>
         </div>
-
-        <div>
-          <label for="product_id">ID del producto</label>
-          <input id="product_id" type="number" min="1" required>
+        <div class="col-lg-4 text-lg-end">
+          <a href="{% url 'cart' %}" class="btn btn-warning btn-lg">Ir al carrito</a>
         </div>
-
-        <div>
-          <label for="quantity">Cantidad</label>
-          <input id="quantity" type="number" min="1" value="1" required>
-        </div>
-
       </div>
-      <button type="submit">Crear carrito</button>
-    </form>
+    </section>
 
-    <pre id="result">Resultado pendiente...</pre>
-  </main>
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <h2 class="h3 mb-3">Productos</h2>
+        <div class="row g-4">
+          {% for product in products %}
+            <div class="col-md-6 col-xl-4">
+              <article class="card product-card h-100">
+                <div class="product-visual">
+                  {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                  {% elif product.category == "shirt" %}
+                    <span>👕</span>
+                  {% elif product.category == "pants" %}
+                    <span>👖</span>
+                  {% else %}
+                    <span>🧥</span>
+                  {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h3 class="h5 mb-0">{{ product.name }}</h3>
+                    <span class="badge rounded-pill text-bg-light">{{ product.get_category_display }}</span>
+                  </div>
+                  <p class="text-muted small mb-2">SKU: {{ product.sku }}</p>
+                  <p class="text-muted small">{{ product.description|default:"Sin descripcion." }}</p>
+                  <p class="fs-4 fw-semibold text-dark mb-4">$ {{ product.price }}</p>
+
+                  <div class="mt-auto d-grid gap-2">
+                    <label class="form-label mb-0" for="quantity-{{ product.id }}">Cantidad</label>
+                    <input
+                      id="quantity-{{ product.id }}"
+                      class="form-control"
+                      type="number"
+                      min="1"
+                      value="1"
+                    >
+                    <button
+                      class="btn btn-dark add-to-cart"
+                      type="button"
+                      data-product-id="{{ product.id }}"
+                    >
+                      Agregar al carrito
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <aside class="card cart-panel">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h2 class="h4 mb-1">Carrito</h2>
+                <p class="text-muted small mb-0">Desde aqui solo agregas y revisas el resumen.</p>
+              </div>
+              <span id="cart-count" class="badge text-bg-warning">0 items</span>
+            </div>
+
+            <div id="cart-items" class="mb-4">
+              <p class="text-muted mb-0">Aun no has agregado productos.</p>
+            </div>
+
+            <div class="bg-light rounded-4 p-3 mb-3">
+              <div class="d-flex justify-content-between mb-2">
+                <span>Subtotal estimado</span>
+                <strong id="cart-subtotal">$ 0.00</strong>
+              </div>
+              <div class="d-flex justify-content-between text-muted small">
+                <span>Impuesto estimado (19%)</span>
+                <span id="cart-tax">$ 0.00</span>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <a href="{% url 'cart' %}" class="btn btn-warning btn-lg">Ver carrito</a>
+              <button id="clear-cart-button" class="btn btn-outline-secondary" type="button">Vaciar carrito</button>
+            </div>
+
+            <div id="result" class="alert d-none mt-3 mb-0" role="alert"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  {{ products_json|json_script:"products-data" }}
 
   <script>
-    const form = document.getElementById("cart-form");
+    const CART_STORAGE_KEY = "privilegio-cart";
+    const products = JSON.parse(document.getElementById("products-data").textContent);
+    const catalog = new Map(products.map((product) => [product.id, product]));
+
+    const cartItemsContainer = document.getElementById("cart-items");
+    const cartCount = document.getElementById("cart-count");
+    const cartSubtotal = document.getElementById("cart-subtotal");
+    const cartTax = document.getElementById("cart-tax");
     const resultBox = document.getElementById("result");
 
-    function getCSRFToken() {
-      const tokenInput = document.querySelector("input[name=csrfmiddlewaretoken]");
-      return tokenInput ? tokenInput.value : "";
+    function readCart() {
+      return JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || "[]");
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    function writeCart(items) {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    }
 
-      const payload = {
-        customer_email: document.getElementById("customer_email").value.trim(),
-        items: [
-          {
-            product_id: Number(document.getElementById("product_id").value),
-            quantity: Number(document.getElementById("quantity").value)
-          }
-        ]
-      };
+    function money(value) {
+      return `$ ${Number(value).toFixed(2)}`;
+    }
 
-      try {
-        const response = await fetch("/api/carts/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken()
-          },
-          body: JSON.stringify(payload)
-        });
+    function renderCart() {
+      const cart = readCart();
 
-        const body = await response.json();
-        const statusClass = response.ok ? "status-ok" : "status-error";
-        resultBox.innerHTML = `<span class="${statusClass}">HTTP ${response.status}</span>\n` +
-          JSON.stringify(body, null, 2);
-      } catch (error) {
-        resultBox.innerHTML = `<span class="status-error">Error de conexión</span>\n${error}`;
+      if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="text-muted mb-0">Aun no has agregado productos.</p>';
+      } else {
+        cartItemsContainer.innerHTML = cart.map((item) => `
+          <div class="border-top py-3">
+            <div class="d-flex justify-content-between gap-3">
+              <div>
+                <h3 class="h6 mb-1">${item.name}</h3>
+                <p class="text-muted small mb-0">${money(item.price)} c/u</p>
+              </div>
+              <div class="text-end fw-semibold">x${item.quantity}</div>
+            </div>
+          </div>
+        `).join("");
       }
+
+      const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+      const tax = subtotal * 0.19;
+      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+      cartCount.textContent = `${totalItems} items`;
+      cartSubtotal.textContent = money(subtotal);
+      cartTax.textContent = money(tax);
+    }
+
+    function showResult(message, type) {
+      resultBox.className = `alert alert-${type} mt-3 mb-0`;
+      resultBox.textContent = message;
+    }
+
+    document.querySelectorAll(".add-to-cart").forEach((button) => {
+      button.addEventListener("click", () => {
+        const productId = Number(button.dataset.productId);
+        const quantityInput = document.getElementById(`quantity-${productId}`);
+        const quantity = Number(quantityInput.value);
+
+        if (!quantity || quantity < 1) {
+          showResult("La cantidad debe ser mayor que 0.", "danger");
+          return;
+        }
+
+        const cart = readCart();
+        const product = catalog.get(productId);
+        const existing = cart.find((item) => item.id === productId);
+
+        if (existing) {
+          existing.quantity += quantity;
+        } else {
+          cart.push({
+            id: productId,
+            name: product.name,
+            price: Number(product.price),
+            quantity: quantity,
+          });
+        }
+
+        writeCart(cart);
+        renderCart();
+        showResult(`${product.name} agregado al carrito.`, "success");
+      });
     });
+
+    document.getElementById("clear-cart-button").addEventListener("click", () => {
+      writeCart([]);
+      renderCart();
+      showResult("Carrito vaciado.", "secondary");
+    });
+
+    renderCart();
   </script>
 </body>
 </html>

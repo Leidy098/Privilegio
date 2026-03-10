@@ -6,13 +6,66 @@ from django.db import transaction
 
 from .builders import CartLineInput, ShoppingCartBuilder
 from .infra.tax_factory import TaxCalculatorFactory
-from .models import ShoppingCart
+from .models import Product, ShoppingCart
 
 
 @dataclass(frozen=True)
 class CreateCartRequest:
     customer_email: str
     lines: list[dict]
+
+
+class ProductCatalogService:
+    SAMPLE_PRODUCTS = (
+        {
+            "sku": "CAM-URB-001",
+            "name": "Camiseta Urban Beige",
+            "category": "shirt",
+            "description": "Camiseta casual de corte relajado para uso diario.",
+            "price": Decimal("79.90"),
+        },
+        {
+            "sku": "PAN-DEN-002",
+            "name": "Jean Slim Indigo",
+            "category": "pants",
+            "description": "Jean slim fit en denim oscuro, facil de combinar.",
+            "price": Decimal("129.90"),
+        },
+        {
+            "sku": "JAC-ESS-003",
+            "name": "Chaqueta Essential Olive",
+            "category": "outerwear",
+            "description": "Chaqueta ligera para clima fresco con estilo urbano.",
+            "price": Decimal("189.90"),
+        },
+    )
+
+    @classmethod
+    def ensure_sample_products(cls) -> list[Product]:
+        products = []
+        for item in cls.SAMPLE_PRODUCTS:
+            product, _ = Product.objects.get_or_create(
+                sku=item["sku"],
+                defaults={
+                    "name": item["name"],
+                    "category": item["category"],
+                    "description": item["description"],
+                    "price": item["price"],
+                    "is_active": True,
+                },
+            )
+            fields_to_update = []
+            if not product.is_active:
+                product.is_active = True
+                fields_to_update.append("is_active")
+            if not product.description:
+                product.description = item["description"]
+                fields_to_update.append("description")
+            if fields_to_update:
+                product.save(update_fields=fields_to_update)
+            products.append(product)
+
+        return products
 
 
 class ShoppingCartService:

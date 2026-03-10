@@ -71,6 +71,22 @@ class ShoppingCartFlowTests(TestCase):
         self.assertEqual(data["tax"], "0.00")
         self.assertEqual(data["total"], "59.90")
 
+    def test_home_view_loads_sample_catalog(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Privilegio Store")
+        self.assertContains(response, "Camiseta Urban Beige")
+        self.assertContains(response, "Jean Slim Indigo")
+        self.assertContains(response, "Chaqueta Essential Olive")
+
+    def test_cart_view_loads(self):
+        response = self.client.get(reverse("cart"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tu carrito")
+        self.assertContains(response, "Completar compra")
+
 
 class TaxCalculatorFactoryTests(TestCase):
     @patch.dict("os.environ", {"TAX_PROVIDER": "REAL"}, clear=False)

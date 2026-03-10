@@ -8,6 +8,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "sku", "category", "price", "is_active")
     search_fields = ("name", "sku")
     list_filter = ("category", "is_active")
+    fields = ("name", "sku", "category", "description", "image", "price", "is_active")
 
 
 class CartItemInline(admin.TabularInline):
