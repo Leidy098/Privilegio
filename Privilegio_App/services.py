@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 
 from .builders import CartLineInput, ShoppingCartBuilder
 from .infra.tax_factory import TaxCalculatorFactory
@@ -16,7 +19,7 @@ class CreateCartRequest:
     lines: list[dict[str, Any]]
 
 
-class ProductCatalogService:
+class CatalogBootstrapService:
     SAMPLE_PRODUCTS = (
         {
             "sku": "CAM-URB-001",
@@ -69,50 +72,81 @@ class ProductCatalogService:
 
         return products
 
-    @classmethod
-    def get_catalog_products(cls) -> list[Product]:
-        cls.ensure_sample_products()
+
+class CatalogQueryService:
+    @staticmethod
+    def get_catalog_products() -> list[Product]:
+        CatalogBootstrapService.ensure_sample_products()
         return list(Product.objects.filter(is_active=True).order_by("id"))
 
 
-class ShoppingCartService:
-    def create_cart_from_raw_body(self, raw_body: bytes) -> dict:
-        body = cast(dict[str, Any], json.loads(raw_body or "{}"))
-        payload = CreateCartRequest(
-            customer_email=str(body.get("customer_email", "")),
-            lines=cast(list[dict[str, Any]], body.get("items", [])),
-        )
-        cart = self.create_cart(payload)
-        return self.serialize_cart(cart)
-
-    @transaction.atomic
-    def create_cart(self, payload: CreateCartRequest) -> ShoppingCart:
-        normalized_lines = [
-            CartLineInput(
-                product_id=int(line["product_id"]),
-                quantity=int(line["quantity"]),
-            )
-            for line in payload.lines
+class CatalogContextService:
+    @classmethod
+    def build_catalog_context(cls, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        resolved_context = dict(context or {})
+        products = CatalogQueryService.get_catalog_products()
+        resolved_context["products"] = products
+        resolved_context["products_json"] = [
+            {
+                "id": product.pk,
+                "name": cast(str, product.name),
+                "price": str(cast(Decimal, product.price)),
+                "category": cast(str, product.category),
+            }
+            for product in products
         ]
+        return resolved_context
 
-        builder = ShoppingCartBuilder(
-            customer_email=payload.customer_email,
-            lines=normalized_lines,
+
+class CartPageFlowService:
+    @classmethod
+    def build_context(cls, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        return CatalogContextService.build_catalog_context(context)
+
+
+class ProductQueryService:
+    @staticmethod
+    def get_active_product_or_404(product_id: Any) -> Product:
+        if product_id is None:
+            raise Http404("Product id is required.")
+
+        return cast(
+            Product,
+            get_object_or_404(Product, pk=product_id, is_active=True),
         )
-        cart = builder.build()
 
+
+class ProductDetailFlowService:
+    @staticmethod
+    def build_context(product_id: Any, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        resolved_context = dict(context or {})
+        resolved_context["product"] = ProductQueryService.get_active_product_or_404(product_id)
+        return resolved_context
+
+
+class CreateCartRequestParser:
+    @staticmethod
+    def parse(raw_body: bytes) -> CreateCartRequest:
+        body = cast(dict[str, Any], json.loads(raw_body or "{}"))
+        items = body.get("items", [])
+        if not isinstance(items, list):
+            raise ValidationError("items must be a list.")
+
+        return CreateCartRequest(
+            customer_email=str(body.get("customer_email", "")),
+            lines=cast(list[dict[str, Any]], items),
+        )
+
+
+class CartTotalsService:
+    def __init__(self, tax_calculator_factory: type[TaxCalculatorFactory] = TaxCalculatorFactory) -> None:
+        self.tax_calculator_factory = tax_calculator_factory
+
+    def calculate(self, cart: ShoppingCart) -> tuple[Decimal, Decimal, Decimal]:
         subtotal = self._calculate_subtotal(cart)
-        tax_calculator = TaxCalculatorFactory.create()
-        tax = tax_calculator.calculate(subtotal)
+        tax = self.tax_calculator_factory.create().calculate(subtotal)
         total = (subtotal + tax).quantize(Decimal("0.01"))
-
-        cart.subtotal = subtotal
-        cart.tax = tax
-        cart.total = total
-        cart.full_clean()
-        cart.save(update_fields=["subtotal", "tax", "total", "updated_at"])
-
-        return cart
+        return subtotal, tax, total
 
     @staticmethod
     def _calculate_subtotal(cart: ShoppingCart) -> Decimal:
@@ -123,8 +157,10 @@ class ShoppingCartService:
         subtotal = sum((cast(Decimal, item.line_total) for item in cart_items), Decimal("0.00"))
         return subtotal.quantize(Decimal("0.01"))
 
+
+class CartSerializer:
     @staticmethod
-    def serialize_cart(cart: ShoppingCart) -> dict:
+    def serialize(cart: ShoppingCart) -> dict[str, Any]:
         cart_items = cast(
             list[CartItem],
             list(CartItem.objects.filter(cart=cart).select_related("product")),
@@ -146,3 +182,49 @@ class ShoppingCartService:
                 for item in cart_items
             ],
         }
+
+
+class ShoppingCartService:
+    def __init__(
+        self,
+        request_parser: CreateCartRequestParser | None = None,
+        totals_service: CartTotalsService | None = None,
+        serializer: CartSerializer | None = None,
+    ) -> None:
+        self.request_parser = request_parser or CreateCartRequestParser()
+        self.totals_service = totals_service or CartTotalsService()
+        self.serializer = serializer or CartSerializer()
+
+    def execute(self, raw_body: bytes) -> dict[str, Any]:
+        payload = self.request_parser.parse(raw_body)
+        cart = self.create_cart(payload)
+        return self.serializer.serialize(cart)
+
+    def create_cart_from_raw_body(self, raw_body: bytes) -> dict:
+        return self.execute(raw_body)
+
+    @transaction.atomic
+    def create_cart(self, payload: CreateCartRequest) -> ShoppingCart:
+        normalized_lines = [
+            CartLineInput(
+                product_id=int(line["product_id"]),
+                quantity=int(line["quantity"]),
+            )
+            for line in payload.lines
+        ]
+
+        builder = ShoppingCartBuilder(
+            customer_email=payload.customer_email,
+            lines=normalized_lines,
+        )
+        cart = builder.build()
+
+        subtotal, tax, total = self.totals_service.calculate(cart)
+
+        cart.subtotal = subtotal
+        cart.tax = tax
+        cart.total = total
+        cart.full_clean()
+        cart.save(update_fields=["subtotal", "tax", "total", "updated_at"])
+
+        return cart
