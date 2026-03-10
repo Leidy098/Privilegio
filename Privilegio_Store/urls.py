@@ -18,11 +18,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
-from Privilegio_App.views import CartView, HomeView, ShoppingCartCreateView
+from Privilegio_App.views import CartView, HomeView, ProductDetailView, ShoppingCartCreateView
 from Privilegio_App.services import ShoppingCartService
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
+    path("products/<int:pk>/", ProductDetailView.as_view(), name="product-detail"),
     path("cart/", CartView.as_view(), name="cart"),
     path('admin/', admin.site.urls),
     path(

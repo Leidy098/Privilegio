@@ -1,18 +1,19 @@
 import json
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any, cast
 
 from django.db import transaction
 
 from .builders import CartLineInput, ShoppingCartBuilder
 from .infra.tax_factory import TaxCalculatorFactory
-from .models import Product, ShoppingCart
+from .models import CartItem, Product, ShoppingCart
 
 
 @dataclass(frozen=True)
 class CreateCartRequest:
     customer_email: str
-    lines: list[dict]
+    lines: list[dict[str, Any]]
 
 
 class ProductCatalogService:
@@ -42,7 +43,7 @@ class ProductCatalogService:
 
     @classmethod
     def ensure_sample_products(cls) -> list[Product]:
-        products = []
+        products: list[Product] = []
         for item in cls.SAMPLE_PRODUCTS:
             product, _ = Product.objects.get_or_create(
                 sku=item["sku"],
@@ -54,11 +55,12 @@ class ProductCatalogService:
                     "is_active": True,
                 },
             )
+            product = cast(Product, product)
             fields_to_update = []
-            if not product.is_active:
+            if not cast(bool, product.is_active):
                 product.is_active = True
                 fields_to_update.append("is_active")
-            if not product.description:
+            if not cast(str, product.description):
                 product.description = item["description"]
                 fields_to_update.append("description")
             if fields_to_update:
@@ -67,13 +69,18 @@ class ProductCatalogService:
 
         return products
 
+    @classmethod
+    def get_catalog_products(cls) -> list[Product]:
+        cls.ensure_sample_products()
+        return list(Product.objects.filter(is_active=True).order_by("id"))
+
 
 class ShoppingCartService:
     def create_cart_from_raw_body(self, raw_body: bytes) -> dict:
-        body = json.loads(raw_body or "{}")
+        body = cast(dict[str, Any], json.loads(raw_body or "{}"))
         payload = CreateCartRequest(
-            customer_email=body.get("customer_email", ""),
-            lines=body.get("items", []),
+            customer_email=str(body.get("customer_email", "")),
+            lines=cast(list[dict[str, Any]], body.get("items", [])),
         )
         cart = self.create_cart(payload)
         return self.serialize_cart(cart)
@@ -109,25 +116,33 @@ class ShoppingCartService:
 
     @staticmethod
     def _calculate_subtotal(cart: ShoppingCart) -> Decimal:
-        subtotal = sum((item.line_total for item in cart.items.all()), Decimal("0.00"))
+        cart_items = cast(
+            list[CartItem],
+            list(CartItem.objects.filter(cart=cart)),
+        )
+        subtotal = sum((cast(Decimal, item.line_total) for item in cart_items), Decimal("0.00"))
         return subtotal.quantize(Decimal("0.01"))
 
     @staticmethod
     def serialize_cart(cart: ShoppingCart) -> dict:
+        cart_items = cast(
+            list[CartItem],
+            list(CartItem.objects.filter(cart=cart).select_related("product")),
+        )
         return {
-            "id": cart.id,
-            "customer_email": cart.customer_email,
-            "status": cart.status,
-            "subtotal": str(cart.subtotal),
-            "tax": str(cart.tax),
-            "total": str(cart.total),
+            "id": cart.pk,
+            "customer_email": cast(str, cart.customer_email),
+            "status": cast(str, cart.status),
+            "subtotal": str(cast(Decimal, cart.subtotal)),
+            "tax": str(cast(Decimal, cart.tax)),
+            "total": str(cast(Decimal, cart.total)),
             "items": [
                 {
-                    "product_id": item.product_id,
-                    "quantity": item.quantity,
-                    "unit_price": str(item.unit_price),
-                    "line_total": str(item.line_total),
+                    "product_id": cast(int, cast(Product, item.product).pk),
+                    "quantity": cast(int, item.quantity),
+                    "unit_price": str(cast(Decimal, item.unit_price)),
+                    "line_total": str(cast(Decimal, item.line_total)),
                 }
-                for item in cart.items.select_related("product").all()
+                for item in cart_items
             ],
         }

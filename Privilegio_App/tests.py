@@ -30,8 +30,8 @@ class ShoppingCartFlowTests(TestCase):
         payload = {
             "customer_email": "cliente@tienda.com",
             "items": [
-                {"product_id": self.product_a.id, "quantity": 1},
-                {"product_id": self.product_b.id, "quantity": 2},
+                {"product_id": self.product_a.pk, "quantity": 1},
+                {"product_id": self.product_b.pk, "quantity": 2},
             ],
         }
 
@@ -60,7 +60,7 @@ class ShoppingCartFlowTests(TestCase):
     def test_create_cart_uses_mock_tax_provider(self):
         payload = {
             "customer_email": "cliente@tienda.com",
-            "items": [{"product_id": self.product_a.id, "quantity": 1}],
+            "items": [{"product_id": self.product_a.pk, "quantity": 1}],
         }
 
         response = self.client.post(self.url, data=payload, content_type="application/json")
@@ -76,6 +76,8 @@ class ShoppingCartFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Privilegio Store")
+        self.assertContains(response, "Classic White Shirt")
+        self.assertContains(response, "Slim Black Pants")
         self.assertContains(response, "Camiseta Urban Beige")
         self.assertContains(response, "Jean Slim Indigo")
         self.assertContains(response, "Chaqueta Essential Olive")
@@ -86,6 +88,13 @@ class ShoppingCartFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Tu carrito")
         self.assertContains(response, "Completar compra")
+
+    def test_product_detail_view_loads(self):
+        response = self.client.get(reverse("product-detail", args=[self.product_a.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Classic White Shirt")
+        self.assertContains(response, "Detalle de prenda")
 
 
 class TaxCalculatorFactoryTests(TestCase):

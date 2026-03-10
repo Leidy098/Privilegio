@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import cast
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -36,11 +37,11 @@ class ShoppingCartBuilder:
         cart.save()
 
         for line in self.lines:
-            product = Product.objects.filter(id=line.product_id, is_active=True).first()
+            product = cast(Product | None, Product.objects.filter(pk=line.product_id, is_active=True).first())
             if not product:
                 raise ValidationError(f"Product {line.product_id} is not available.")
 
-            unit_price = product.price
+            unit_price = cast(Decimal, product.price)
             line_total = (unit_price * Decimal(line.quantity)).quantize(Decimal("0.01"))
 
             cart_item = CartItem(

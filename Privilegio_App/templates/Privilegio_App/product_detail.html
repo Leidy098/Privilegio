@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ product.name }} | Privilegio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f1ea;
+      --surface: rgba(255, 252, 247, 0.82);
+      --ink: #1f1a17;
+      --muted: #756b64;
+      --line: rgba(65, 54, 46, 0.12);
+      --accent-deep: #8b6a3f;
+      --shadow: 0 24px 70px rgba(52, 41, 30, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+    }
+
+    body {
+      font-family: "Manrope", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(183, 146, 93, 0.15), transparent 24%),
+        linear-gradient(180deg, #f8f4ee 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    .display-serif,
+    .section-title {
+      font-family: "Cormorant Garamond", serif;
+    }
+
+    .shell,
+    .panel,
+    .summary-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--surface);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+
+    .display-serif {
+      font-size: clamp(2.8rem, 5vw, 4.6rem);
+      line-height: 0.94;
+      font-weight: 600;
+    }
+
+    .eyebrow {
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .product-visual {
+      min-height: 520px;
+      border-radius: var(--radius-xl);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 35%),
+        linear-gradient(140deg, #ede5da, #f9f6f1 55%, #efe7db);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .product-visual img {
+      width: 100%;
+      height: 520px;
+      object-fit: cover;
+    }
+
+    .visual-glyph {
+      font-size: 7rem;
+      opacity: 0.78;
+    }
+
+    .category-chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.74rem;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .price-tag {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .premium-input,
+    .premium-btn,
+    .premium-btn-outline {
+      border-radius: 999px;
+      min-height: 52px;
+    }
+
+    .premium-input {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.7);
+      padding-inline: 1rem;
+    }
+
+    .premium-input:focus {
+      border-color: rgba(183, 146, 93, 0.5);
+      box-shadow: 0 0 0 0.2rem rgba(183, 146, 93, 0.14);
+    }
+
+    .premium-btn {
+      border: 0;
+      background: linear-gradient(135deg, var(--ink), #39322e);
+      color: #f9f5ef;
+      font-weight: 600;
+    }
+
+    .premium-btn-outline {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .summary-card {
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.44);
+    }
+
+    .result-box {
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4 py-lg-5">
+    <section class="shell p-4 p-lg-5 mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+          <div class="eyebrow mb-3">Detalle de prenda</div>
+          <h1 class="display-serif mb-2">{{ product.name }}</h1>
+          <p class="text-muted mb-0">Consulta la informacion de la prenda y agregala al carrito desde aqui.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'home' %}" class="btn premium-btn-outline px-4">Volver al catalogo</a>
+          <a href="{% url 'cart' %}" class="btn premium-btn px-4">Ir al carrito</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="row g-4 g-xl-5">
+      <div class="col-lg-7">
+        <div class="product-visual">
+          {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+          {% elif product.category == "shirt" %}
+            <span class="visual-glyph">👕</span>
+          {% elif product.category == "pants" %}
+            <span class="visual-glyph">👖</span>
+          {% else %}
+            <span class="visual-glyph">🧥</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <aside class="panel p-4 p-lg-5 h-100">
+          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <div class="eyebrow mb-2">SKU {{ product.sku }}</div>
+              <h2 class="section-title mb-0">{{ product.name }}</h2>
+            </div>
+            <span class="category-chip">{{ product.get_category_display }}</span>
+          </div>
+
+          <p class="text-muted mb-4">{{ product.description|default:"Sin descripcion." }}</p>
+
+          <div class="summary-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">Precio</span>
+              <strong class="price-tag">$ {{ product.price }}</strong>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Estado</span>
+              <span class="fw-semibold text-success">Disponible</span>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label text-muted small" for="size-input">Talla</label>
+              <select id="size-input" class="form-select premium-input">
+                <option value="S">S</option>
+                <option value="M" selected>M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label text-muted small" for="quantity-input">Cantidad</label>
+              <input id="quantity-input" class="form-control premium-input" type="number" min="1" value="1">
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button id="add-to-cart-button" class="btn premium-btn btn-lg" type="button">Agregar al carrito</button>
+            <a href="{% url 'cart' %}" class="btn premium-btn-outline">Ver carrito</a>
+          </div>
+
+          <div id="result" class="alert d-none mt-3 mb-0 result-box" role="alert"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script id="product-data" type="application/json">
+    {
+      "id": {{ product.id }},
+      "name": "{{ product.name|escapejs }}",
+      "price": "{{ product.price }}"
+    }
+  </script>
+
+  <script>
+    const CART_STORAGE_KEY = "privilegio-cart";
+    const currentProduct = JSON.parse(document.getElementById("product-data").textContent);
+    currentProduct.price = Number(currentProduct.price);
+
+    function getCartItemKey(productId, size) {
+      return `${productId}-${size}`;
+    }
+
+    function readCart() {
+      const cart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || "[]");
+      return cart.map((item) => ({
+        ...item,
+        size: item.size || "M",
+        key: item.key || getCartItemKey(item.id, item.size || "M"),
+      }));
+    }
+
+    function writeCart(items) {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function showResult(message, type) {
+      const resultBox = document.getElementById("result");
+      resultBox.className = `alert alert-${type} mt-3 mb-0 result-box`;
+      resultBox.textContent = message;
+    }
+
+    document.getElementById("add-to-cart-button").addEventListener("click", () => {
+      const size = document.getElementById("size-input").value;
+      const quantity = Number(document.getElementById("quantity-input").value);
+
+      if (!quantity || quantity < 1) {
+        showResult("La cantidad debe ser mayor que 0.", "danger");
+        return;
+      }
+
+      const cart = readCart();
+      const itemKey = getCartItemKey(currentProduct.id, size);
+      const existing = cart.find((item) => item.key === itemKey);
+
+      if (existing) {
+        existing.quantity += quantity;
+      } else {
+        cart.push({
+          key: itemKey,
+          id: currentProduct.id,
+          name: currentProduct.name,
+          price: currentProduct.price,
+          size: size,
+          quantity: quantity,
+        });
+      }
+
+      writeCart(cart);
+      showResult(`${currentProduct.name} talla ${size} agregado al carrito.`, "success");
+    });
+  </script>
+</body>
+</html>
