@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
@@ -9,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from .builders import CartLineInput, ShoppingCartBuilder
+from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
 from .infra.tax_factory import TaxCalculatorFactory
 from .models import CartItem, Product, ShoppingCart
 
@@ -16,7 +16,7 @@ from .models import CartItem, Product, ShoppingCart
 @dataclass(frozen=True)
 class CreateCartRequest:
     customer_email: str
-    lines: list[dict[str, Any]]
+    lines: list[CartLineInput]
 
 
 class CatalogBootstrapService:
@@ -124,20 +124,6 @@ class ProductDetailFlowService:
         return resolved_context
 
 
-class CreateCartRequestParser:
-    @staticmethod
-    def parse(raw_body: bytes) -> CreateCartRequest:
-        body = cast(dict[str, Any], json.loads(raw_body or "{}"))
-        items = body.get("items", [])
-        if not isinstance(items, list):
-            raise ValidationError("items must be a list.")
-
-        return CreateCartRequest(
-            customer_email=str(body.get("customer_email", "")),
-            lines=cast(list[dict[str, Any]], items),
-        )
-
-
 class CartTotalsService:
     def __init__(self, tax_calculator_factory: type[TaxCalculatorFactory] = TaxCalculatorFactory) -> None:
         self.tax_calculator_factory = tax_calculator_factory
@@ -187,35 +173,19 @@ class CartSerializer:
 class ShoppingCartService:
     def __init__(
         self,
-        request_parser: CreateCartRequestParser | None = None,
         totals_service: CartTotalsService | None = None,
-        serializer: CartSerializer | None = None,
     ) -> None:
-        self.request_parser = request_parser or CreateCartRequestParser()
         self.totals_service = totals_service or CartTotalsService()
-        self.serializer = serializer or CartSerializer()
 
-    def execute(self, raw_body: bytes) -> dict[str, Any]:
-        payload = self.request_parser.parse(raw_body)
+    def execute(self, payload: CreateCartRequest) -> dict[str, Any]:
         cart = self.create_cart(payload)
-        return self.serializer.serialize(cart)
-
-    def create_cart_from_raw_body(self, raw_body: bytes) -> dict:
-        return self.execute(raw_body)
+        return CartSerializer.serialize(cart)
 
     @transaction.atomic
     def create_cart(self, payload: CreateCartRequest) -> ShoppingCart:
-        normalized_lines = [
-            CartLineInput(
-                product_id=int(line["product_id"]),
-                quantity=int(line["quantity"]),
-            )
-            for line in payload.lines
-        ]
-
         builder = ShoppingCartBuilder(
             customer_email=payload.customer_email,
-            lines=normalized_lines,
+            lines=payload.lines,
         )
         cart = builder.build()
 

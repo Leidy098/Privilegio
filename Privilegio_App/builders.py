@@ -5,6 +5,7 @@ from typing import cast
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
 from .models import CartItem, Product, ShoppingCart
 
 
@@ -24,9 +25,14 @@ class ShoppingCartBuilder:
             raise ValidationError("customer_email is required.")
         if not self.lines:
             raise ValidationError("At least one cart line is required.")
+
+        seen_products: set[int] = set()
         for line in self.lines:
             if line.quantity < 1:
                 raise ValidationError("Quantity must be greater than 0.")
+            if line.product_id in seen_products:
+                raise DuplicatedCartItemError(line.product_id)
+            seen_products.add(line.product_id)
 
     @transaction.atomic
     def build(self) -> ShoppingCart:
@@ -39,7 +45,7 @@ class ShoppingCartBuilder:
         for line in self.lines:
             product = cast(Product | None, Product.objects.filter(pk=line.product_id, is_active=True).first())
             if not product:
-                raise ValidationError(f"Product {line.product_id} is not available.")
+                raise ProductNotAvailableError(line.product_id)
 
             unit_price = cast(Decimal, product.price)
             line_total = (unit_price * Decimal(line.quantity)).quantize(Decimal("0.01"))

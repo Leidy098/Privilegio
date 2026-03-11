@@ -54,6 +54,29 @@ class ShoppingCartFlowTests(TestCase):
 
         response = self.client.post(self.url, data=payload, content_type="application/json")
 
+        self.assertEqual(response.status_code, 404)
+
+    def test_create_cart_with_duplicated_products_returns_409(self):
+        payload = {
+            "customer_email": "cliente@tienda.com",
+            "items": [
+                {"product_id": self.product_a.pk, "quantity": 1},
+                {"product_id": self.product_a.pk, "quantity": 2},
+            ],
+        }
+
+        response = self.client.post(self.url, data=payload, content_type="application/json")
+
+        self.assertEqual(response.status_code, 409)
+
+    def test_create_cart_with_invalid_payload_returns_400(self):
+        payload = {
+            "customer_email": "correo-invalido",
+            "items": [],
+        }
+
+        response = self.client.post(self.url, data=payload, content_type="application/json")
+
         self.assertEqual(response.status_code, 400)
 
     @patch.dict("os.environ", {"TAX_PROVIDER": "MOCK"}, clear=False)

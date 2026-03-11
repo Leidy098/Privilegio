@@ -1,14 +1,20 @@
-from typing import Any
+from typing import Any, cast
 
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
 from django.http import HttpRequest
 from django.views.generic import TemplateView
-from django.views import View
+from rest_framework import status
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .builders import CartLineInput
+from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
+from .serializers import CartOutputSerializer, CreateCartInputSerializer
 from .services import (
     CartPageFlowService,
     CatalogContextService,
+    CreateCartRequest,
     ProductDetailFlowService,
     ShoppingCartService,
 )
@@ -38,12 +44,33 @@ class ProductDetailView(TemplateView):
         )
 
 
-class ShoppingCartCreateView(View):
+class ShoppingCartCreateView(APIView):
     service = ShoppingCartService()
 
-    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        input_serializer = CreateCartInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return Response(input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = cast(dict[str, Any], input_serializer.validated_data)
+        payload = CreateCartRequest(
+            customer_email=validated_data["customer_email"],
+            lines=[
+                CartLineInput(
+                    product_id=item["product_id"],
+                    quantity=item["quantity"],
+                )
+                for item in validated_data["items"]
+            ],
+        )
+
         try:
-            data = self.service.execute(request.body)
-        except (ValidationError, KeyError, TypeError, ValueError) as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
-        return JsonResponse(data, status=201)
+            data = self.service.execute(payload)
+        except ProductNotAvailableError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except DuplicatedCartItemError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
+        except ValidationError as exc:
+            return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(CartOutputSerializer(instance=data).data, status=status.HTTP_201_CREATED)
