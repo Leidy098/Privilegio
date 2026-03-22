@@ -5,8 +5,8 @@ from typing import cast
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
-from .models import CartItem, Product, ShoppingCart
+from ..exceptions import DuplicatedCartItemError, ProductNotAvailableError
+from ..models import CartItem, Product, ShoppingCart
 
 
 @dataclass(frozen=True)

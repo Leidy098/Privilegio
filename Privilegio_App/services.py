@@ -7,9 +7,9 @@ from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
-from .builders import CartLineInput, ShoppingCartBuilder
+from .domain.builders import CartLineInput, ShoppingCartBuilder
 from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
-from .infra.tax_factory import TaxCalculatorFactory
+from .infra.factories import TaxCalculatorFactory
 from .models import CartItem, Product, ShoppingCart
 
 

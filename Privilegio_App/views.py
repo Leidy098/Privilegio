@@ -8,7 +8,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .builders import CartLineInput
+from .domain.builders import CartLineInput
 from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
 from .serializers import CartOutputSerializer, CreateCartInputSerializer
 from .services import (

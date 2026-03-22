@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
-from .infra.tax_factory import TaxCalculatorFactory
+from .infra.factories import TaxCalculatorFactory
 from .models import Product, ShoppingCart
 
 
