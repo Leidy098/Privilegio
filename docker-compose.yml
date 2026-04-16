@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: privilegio_db
+    environment:
+      POSTGRES_DB: privilegio
+      POSTGRES_USER: privilegio
+      POSTGRES_PASSWORD: privilegio
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U privilegio -d privilegio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  django_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django_web
+    command: sh -c "python manage.py migrate && gunicorn Privilegio_Store.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,nginx,django_web
+      DB_ENGINE: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: privilegio
+      POSTGRES_USER: privilegio
+      POSTGRES_PASSWORD: privilegio
+      TAX_PROVIDER: REAL
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  flask_cart_service:
+    build:
+      context: ./flask_cart_service
+      dockerfile: Dockerfile
+    container_name: flask_cart_service
+    environment:
+      FLASK_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: privilegio
+      POSTGRES_USER: privilegio
+      POSTGRES_PASSWORD: privilegio
+      TAX_RATE: "0.19"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx_gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - media_data:/app/media:ro
+    depends_on:
+      - django_web
+      - flask_cart_service
+
+volumes:
+  postgres_data:
+  media_data:

@@ -1,3 +1,5 @@
 Django
 Pillow
 djangorestframework
+gunicorn
+psycopg2-binary

@@ -27,6 +27,7 @@ urlpatterns = [
     path("cart/", CartView.as_view(), name="cart"),
     path('admin/', admin.site.urls),
     path("api/carts/", ShoppingCartCreateView.as_view(), name="cart-create"),
+    path("api/v1/carts/", ShoppingCartCreateView.as_view(), name="cart-create-v1"),
 ]
 
 if settings.DEBUG:
