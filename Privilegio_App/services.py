@@ -2,13 +2,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
-from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from .domain.builders import CartLineInput, ShoppingCartBuilder
-from .exceptions import DuplicatedCartItemError, ProductNotAvailableError
 from .infra.factories import TaxCalculatorFactory
 from .models import CartItem, Product, ShoppingCart
 
@@ -26,21 +24,29 @@ class CatalogBootstrapService:
             "name": "Camiseta Urban Beige",
             "category": "shirt",
             "description": "Camiseta casual de corte relajado para uso diario.",
-            "price": Decimal("79.90"),
+            "price": Decimal("45900"),
         },
         {
             "sku": "PAN-DEN-002",
             "name": "Jean Slim Indigo",
             "category": "pants",
             "description": "Jean slim fit en denim oscuro, facil de combinar.",
-            "price": Decimal("129.90"),
+            "price": Decimal("89900"),
         },
         {
             "sku": "JAC-ESS-003",
             "name": "Chaqueta Essential Olive",
             "category": "outerwear",
             "description": "Chaqueta ligera para clima fresco con estilo urbano.",
-            "price": Decimal("189.90"),
+            "price": Decimal("159900"),
+        },
+        {
+            "sku": "JAC-COA-BRN-001",
+            "name": "Abrigo en mezcla de lana marrón",
+            "category": "outerwear",
+            "description": "Abrigo marrón de corte clásico, con solapa, botones y bolsillos laterales, ideal para climas fríos.",
+            "price": Decimal("259900"),
+            "image": "products/1672241806-abrigo-marron-1672241777.avif",
         },
     )
 
@@ -56,6 +62,7 @@ class CatalogBootstrapService:
                     "description": item["description"],
                     "price": item["price"],
                     "is_active": True,
+                    **({"image": item["image"]} if item.get("image") else {}),
                 },
             )
             product = cast(Product, product)
@@ -66,6 +73,9 @@ class CatalogBootstrapService:
             if not cast(str, product.description):
                 product.description = item["description"]
                 fields_to_update.append("description")
+            if cast(object, product.price) != item["price"]:
+                product.price = item["price"]
+                fields_to_update.append("price")
             if fields_to_update:
                 product.save(update_fields=fields_to_update)
             products.append(product)
@@ -144,7 +154,7 @@ class CartTotalsService:
         return subtotal.quantize(Decimal("0.01"))
 
 
-class CartSerializer:
+class CartPresenter:
     @staticmethod
     def serialize(cart: ShoppingCart) -> dict[str, Any]:
         cart_items = cast(
@@ -179,7 +189,7 @@ class ShoppingCartService:
 
     def execute(self, payload: CreateCartRequest) -> dict[str, Any]:
         cart = self.create_cart(payload)
-        return CartSerializer.serialize(cart)
+        return CartPresenter.serialize(cart)
 
     @transaction.atomic
     def create_cart(self, payload: CreateCartRequest) -> ShoppingCart:

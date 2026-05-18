@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load privilegio_filters %}
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -377,7 +378,7 @@
                   </div>
                   <p class="text-muted small mb-4">{{ product.description|default:"Sin descripcion." }}</p>
                   <div class="mt-auto">
-                    <div class="price-tag mb-3">$ {{ product.price }}</div>
+                    <div class="price-tag mb-3">$ {{ product.price|cop }}</div>
                     <a class="card-link-button" href="{% url 'product-detail' product.id %}">
                       Ver detalle
                     </a>
@@ -408,11 +409,11 @@
           <div class="mini-stat p-4 mb-3">
             <div class="d-flex justify-content-between mb-2">
               <span class="text-muted">Subtotal estimado</span>
-              <strong id="cart-subtotal">$ 0.00</strong>
+              <strong id="cart-subtotal">$ 0</strong>
             </div>
             <div class="d-flex justify-content-between">
               <span class="text-muted">IVA estimado</span>
-              <span id="cart-tax">$ 0.00</span>
+              <span id="cart-tax">$ 0</span>
             </div>
           </div>
 
@@ -451,7 +452,7 @@
     }
 
     function money(value) {
-      return `$ ${Number(value).toFixed(2)}`;
+      return `$ ${Math.round(Number(value)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
     }
 
     function getCartItemKey(productId, size) {

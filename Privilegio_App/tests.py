@@ -14,14 +14,14 @@ class ShoppingCartFlowTests(TestCase):
             name="Classic White Shirt",
             sku="SHIRT-001",
             category="shirt",
-            price=Decimal("59.90"),
+            price=Decimal("45900.00"),
             is_active=True,
         )
         self.product_b = Product.objects.create(
             name="Slim Black Pants",
             sku="PANTS-001",
             category="pants",
-            price=Decimal("89.90"),
+            price=Decimal("89900.00"),
             is_active=True,
         )
         self.url = reverse("cart-create")
@@ -40,9 +40,9 @@ class ShoppingCartFlowTests(TestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["customer_email"], "cliente@tienda.com")
-        self.assertEqual(data["subtotal"], "239.70")
-        self.assertEqual(data["tax"], "45.54")
-        self.assertEqual(data["total"], "285.24")
+        self.assertEqual(data["subtotal"], "225700.00")
+        self.assertEqual(data["tax"], "42883.00")
+        self.assertEqual(data["total"], "268583.00")
         self.assertEqual(len(data["items"]), 2)
         self.assertEqual(ShoppingCart.objects.count(), 1)
 
@@ -90,9 +90,9 @@ class ShoppingCartFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(data["subtotal"], "59.90")
+        self.assertEqual(data["subtotal"], "45900.00")
         self.assertEqual(data["tax"], "0.00")
-        self.assertEqual(data["total"], "59.90")
+        self.assertEqual(data["total"], "45900.00")
 
     def test_home_view_loads_sample_catalog(self):
         response = self.client.get(reverse("home"))
