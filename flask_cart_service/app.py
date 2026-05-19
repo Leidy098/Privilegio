@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -16,6 +17,11 @@ app = Flask(__name__)
 PRODUCT_TABLE = '"Privilegio_App_product"'
 SHOPPING_CART_TABLE = '"Privilegio_App_shoppingcart"'
 CART_ITEM_TABLE = '"Privilegio_App_cartitem"'
+SIZE_CHART_TABLE = '"Privilegio_App_categorysizechart"'
+SIZE_ENTRY_TABLE = '"Privilegio_App_sizeentry"'
+
+SIZES_ORDER = ["S", "M", "L", "XL"]
+FIT_THRESHOLD = 0.20
 
 
 @dataclass
@@ -186,6 +192,126 @@ def create_cart(customer_email: str, items: list[dict[str, int]]) -> dict[str, A
         connection.close()
 
 
+def fetch_size_chart(cursor, category: str) -> tuple[float, list[dict]]:
+    cursor.execute(
+        f"SELECT id, coat_margin FROM {SIZE_CHART_TABLE} WHERE category = %s",
+        (category,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        raise ApiError(404, "chart_not_found", f"No hay tabla de tallas para la categoría '{category}'.")
+    cursor.execute(
+        f"SELECT size, measurement, min_cm, max_cm FROM {SIZE_ENTRY_TABLE} WHERE chart_id = %s",
+        (row["id"],),
+    )
+    return float(row["coat_margin"]), [dict(e) for e in cursor.fetchall()]
+
+
+def calculate_recommendation(
+    measurements: dict[str, float],
+    entries: list[dict],
+    coat_margin: float,
+) -> dict[str, Any]:
+    adjusted = {k: v + coat_margin for k, v in measurements.items()}
+
+    by_measurement: dict[str, dict[str, tuple[float, float]]] = {}
+    for entry in entries:
+        by_measurement.setdefault(entry["measurement"], {})[entry["size"]] = (
+            float(entry["min_cm"]),
+            float(entry["max_cm"]),
+        )
+
+    measurement_results: dict[str, tuple[str, str]] = {}
+    out_of_range_fields: list[str] = []
+
+    for measurement, value in adjusted.items():
+        if measurement not in by_measurement:
+            continue
+        size_ranges = by_measurement[measurement]
+        matched = False
+        for size in SIZES_ORDER:
+            if size not in size_ranges:
+                continue
+            min_cm, max_cm = size_ranges[size]
+            if min_cm <= value <= max_cm:
+                span = max_cm - min_cm
+                position = (value - min_cm) / span if span > 0 else 0.5
+                if position <= FIT_THRESHOLD:
+                    fit = "Holgado"
+                elif position >= (1 - FIT_THRESHOLD):
+                    fit = "Ceñido"
+                else:
+                    fit = "Regular"
+                measurement_results[measurement] = (size, fit)
+                matched = True
+                break
+        if not matched:
+            out_of_range_fields.append(measurement)
+
+    if out_of_range_fields:
+        return {
+            "out_of_range": True, "recommended_size": None, "fit": None,
+            "message": "Tus medidas están fuera del rango disponible para este producto.",
+            "conflict": False, "suggest_next_size": None,
+        }
+
+    if not measurement_results:
+        return {
+            "out_of_range": True, "recommended_size": None, "fit": None,
+            "message": "No se pudieron evaluar las medidas ingresadas.",
+            "conflict": False, "suggest_next_size": None,
+        }
+
+    sizes_found = {s for s, _ in measurement_results.values()}
+    conflict = len(sizes_found) > 1
+    recommended_size = max(sizes_found, key=lambda s: SIZES_ORDER.index(s))
+
+    fits_for_recommended = [f for s, f in measurement_results.values() if s == recommended_size]
+    if not fits_for_recommended:
+        fits_for_recommended = [f for _, f in measurement_results.values()]
+    overall_fit = Counter(fits_for_recommended).most_common(1)[0][0]
+
+    suggest_next: str | None = None
+    if overall_fit == "Ceñido" and not conflict:
+        idx = SIZES_ORDER.index(recommended_size)
+        if idx < len(SIZES_ORDER) - 1:
+            suggest_next = SIZES_ORDER[idx + 1]
+
+    if conflict:
+        field_notes = ", ".join(
+            f"tu {m} corresponde a talla {s}"
+            for m, (s, _) in measurement_results.items()
+            if s != recommended_size
+        )
+        message = (
+            f"Te recomendamos talla {recommended_size} para mayor comodidad. "
+            f"{field_notes.capitalize()}."
+        )
+    else:
+        fit_descriptions = {
+            "Regular": "La prenda se ajustará cómodamente a tu cuerpo.",
+            "Holgado": "La prenda tendrá un ajuste holgado.",
+            "Ceñido": (
+                f"La prenda tendrá un ajuste ceñido. También podrías probar la talla {suggest_next}."
+                if suggest_next
+                else "La prenda tendrá un ajuste ceñido."
+            ),
+        }
+        message = (
+            f"Te recomendamos talla {recommended_size} con ajuste {overall_fit.lower()}. "
+            f"{fit_descriptions[overall_fit]}"
+        )
+
+    return {
+        "out_of_range": False,
+        "recommended_size": recommended_size,
+        "fit": overall_fit,
+        "message": message,
+        "conflict": conflict,
+        "suggest_next_size": suggest_next,
+    }
+
+
 @app.errorhandler(ApiError)
 def handle_api_error(error: ApiError):
     payload, status_code = error.to_response()
@@ -225,6 +351,49 @@ def create_cart_endpoint():
     customer_email, items = validate_payload(request.get_json(silent=True))
     response = create_cart(customer_email, items)
     return jsonify(response), 201
+
+
+@app.post("/api/v2/size-recommendation/")
+def size_recommendation_endpoint():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise ApiError(400, "invalid_body", "Request body must be a JSON object.")
+
+    product_id = payload.get("product_id")
+    measurements = payload.get("measurements")
+
+    if not isinstance(product_id, int) or product_id < 1:
+        raise ApiError(400, "invalid_product_id", "product_id must be a positive integer.")
+    if not isinstance(measurements, dict) or not measurements:
+        raise ApiError(400, "invalid_measurements", "measurements must be a non-empty object.")
+
+    validated: dict[str, float] = {}
+    for key, value in measurements.items():
+        if not isinstance(value, (int, float)) or not (20 <= float(value) <= 200):
+            raise ApiError(400, "invalid_measurement", f"'{key}' debe estar entre 20 y 200 cm.")
+        validated[key] = float(value)
+
+    connection = get_connection()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"SELECT category FROM {PRODUCT_TABLE} WHERE id = %s AND is_active = TRUE",
+                    (product_id,),
+                )
+                product = cursor.fetchone()
+                if product is None:
+                    raise ApiError(404, "product_not_found", f"Producto {product_id} no disponible.")
+                coat_margin, entries = fetch_size_chart(cursor, product["category"])
+
+        result = calculate_recommendation(validated, entries, coat_margin)
+        return jsonify(result), 200
+    except ApiError:
+        raise
+    except psycopg2.Error as exc:
+        raise ApiError(500, "database_error", "Error en base de datos.", {"hint": str(exc).strip()}) from exc
+    finally:
+        connection.close()
 
 
 if __name__ == "__main__":
