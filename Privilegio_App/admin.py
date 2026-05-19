@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib import messages
 
-from .models import CartItem, Product, ShoppingCart
+from .models import CartItem, CategorySizeChart, Product, ShoppingCart, SizeEntry
 
 
 @admin.register(Product)
@@ -34,6 +34,18 @@ class ProductAdmin(admin.ModelAdmin):
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
+
+
+class SizeEntryInline(admin.TabularInline):
+    model = SizeEntry
+    extra = 0
+    ordering = ["measurement", "size"]
+
+
+@admin.register(CategorySizeChart)
+class CategorySizeChartAdmin(admin.ModelAdmin):
+    list_display = ("category", "coat_margin")
+    inlines = [SizeEntryInline]
 
 
 @admin.register(ShoppingCart)

@@ -66,3 +66,41 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"{self.product.sku} x {self.quantity}"
+
+
+class CategorySizeChart(models.Model):
+    CATEGORY_CHOICES = Product.CATEGORY_CHOICES
+
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, unique=True)
+    coat_margin = models.DecimalField(max_digits=4, decimal_places=1, default=Decimal("2.0"))
+
+    def __str__(self):
+        return f"Tabla de tallas: {self.get_category_display()}"
+
+
+class SizeEntry(models.Model):
+    SIZE_CHOICES = [("S", "S"), ("M", "M"), ("L", "L"), ("XL", "XL")]
+    MEASUREMENT_CHOICES = [
+        ("chest", "Pecho"),
+        ("waist", "Cintura"),
+        ("shoulders", "Hombros"),
+        ("neck", "Cuello"),
+        ("arm_length", "Largo de brazo"),
+        ("hips", "Cadera"),
+        ("leg_length", "Largo de pierna"),
+        ("thigh", "Muslo"),
+        ("total_length", "Largo total"),
+    ]
+
+    chart = models.ForeignKey(CategorySizeChart, on_delete=models.CASCADE, related_name="entries")
+    size = models.CharField(max_length=4, choices=SIZE_CHOICES)
+    measurement = models.CharField(max_length=20, choices=MEASUREMENT_CHOICES)
+    min_cm = models.DecimalField(max_digits=5, decimal_places=1)
+    max_cm = models.DecimalField(max_digits=5, decimal_places=1)
+
+    class Meta:
+        unique_together = ("chart", "size", "measurement")
+        ordering = ["measurement", "size"]
+
+    def __str__(self):
+        return f"{self.chart} | {self.size} | {self.get_measurement_display()}: {self.min_cm}–{self.max_cm} cm"

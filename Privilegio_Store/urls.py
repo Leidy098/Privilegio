@@ -19,7 +19,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
 
-from Privilegio_App.api.views import ShoppingCartCreateView
+from Privilegio_App.api.views import ShoppingCartCreateView, SizeRecommendationView
 from Privilegio_App.views import CartView, HomeView, ProductDetailView
 
 urlpatterns = [
@@ -29,6 +29,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/carts/", ShoppingCartCreateView.as_view(), name="cart-create"),
     path("api/v1/carts/", ShoppingCartCreateView.as_view(), name="cart-create-v1"),
+    path("api/size-recommendation/", SizeRecommendationView.as_view(), name="size-recommendation"),
 ]
 
 if settings.DEBUG:
